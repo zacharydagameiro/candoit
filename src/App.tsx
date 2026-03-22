@@ -11,7 +11,7 @@ import SuppliersPage from "./pages/SuppliersPage"
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route element={<GuestOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
