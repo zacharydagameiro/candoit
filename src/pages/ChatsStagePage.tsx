@@ -348,6 +348,26 @@ export default function ChatsStagePage({ stage }: ChatsStagePageProps) {
     )
   }
 
+  async function handleUnpromoteCandidate(candidateId: string) {
+    setError(null)
+    const { error: unpromoteError } = await unpromoteRequirementCandidate(candidateId)
+    if (unpromoteError) {
+      setError(unpromoteError)
+      return
+    }
+
+    setCandidates((currentCandidates) =>
+      currentCandidates.map((candidate) =>
+        candidate.id === candidateId
+          ? {
+              ...candidate,
+              status: "proposed",
+            }
+          : candidate
+      )
+    )
+  }
+
   async function handlePromoteAll() {
     if (!candidates.length || isBulkUpdating) {
       return
@@ -581,10 +601,14 @@ export default function ChatsStagePage({ stage }: ChatsStagePageProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={isAccepted || isBulkUpdating}
-                          onClick={() => void handlePromoteCandidate(candidate.id)}
+                          disabled={isBulkUpdating}
+                          onClick={() =>
+                            void (isAccepted
+                              ? handleUnpromoteCandidate(candidate.id)
+                              : handlePromoteCandidate(candidate.id))
+                          }
                         >
-                          {isAccepted ? "Promoted" : "Promote"}
+                          {isAccepted ? "Unpromote" : "Promote"}
                         </Button>
                         <Button
                           size="sm"

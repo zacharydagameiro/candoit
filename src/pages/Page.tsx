@@ -38,6 +38,7 @@ import { useAuth } from "@/providers/auth-provider"
 
 export default function Page() {
   const { pathname } = useLocation()
+  const isChatRoute = pathname.startsWith("/chats")
   const routeMeta = getRouteMeta(pathname)
   const { profile, signOut, user } = useAuth()
   const [products, setProducts] = useState<ProductRecord[]>([])
@@ -300,7 +301,9 @@ export default function Page() {
               </Sheet>
             </div>
           </header>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
+          <div
+            className={`flex min-h-0 flex-1 flex-col gap-4 p-4 ${isChatRoute ? "overflow-hidden" : "overflow-y-auto"}`}
+          >
             {isProductsLoading ? (
               <div className="flex flex-1 items-center justify-center">
                 <div className="rounded-2xl border bg-card px-6 py-4 text-sm text-muted-foreground shadow-sm">

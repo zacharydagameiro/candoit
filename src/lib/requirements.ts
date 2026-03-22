@@ -361,6 +361,64 @@ export async function bulkArchiveRequirements(
   }
 }
 
+export async function deleteRequirement(
+  requirementId: string
+): Promise<{ error: string | null }> {
+  if (!supabase) {
+    return {
+      error: "Supabase environment variables are missing.",
+    }
+  }
+
+  try {
+    const { error } = await supabase
+      .from("requirements")
+      .delete()
+      .eq("id", requirementId)
+
+    return {
+      error: error?.message ?? null,
+    }
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Unable to delete requirement.",
+    }
+  }
+}
+
+export async function bulkDeleteRequirements(
+  requirementIds: string[]
+): Promise<{ error: string | null }> {
+  if (!requirementIds.length) {
+    return { error: null }
+  }
+
+  if (!supabase) {
+    return {
+      error: "Supabase environment variables are missing.",
+    }
+  }
+
+  try {
+    const { error } = await supabase
+      .from("requirements")
+      .delete()
+      .in("id", requirementIds)
+
+    return {
+      error: error?.message ?? null,
+    }
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to bulk delete requirements.",
+    }
+  }
+}
+
 export async function unpromoteRequirementCandidate(
   candidateId: string
 ): Promise<{ error: string | null }> {

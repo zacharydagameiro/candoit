@@ -8,6 +8,7 @@ import {
   PlayCircleIcon,
   RotateCcwIcon,
   TargetIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import { DataTable } from "@/components/data-table"
@@ -27,8 +28,10 @@ import {
 import { useAppLayout } from "@/hooks/use-app-layout"
 import {
   archiveRequirement,
+  bulkDeleteRequirements,
   bulkArchiveRequirements,
   bulkUpdateRequirementStatus,
+  deleteRequirement,
   listRequirementsForProduct,
   updateRequirementStatus,
   type RequirementWithFoundCount,
@@ -188,6 +191,38 @@ export default function RequirementsPage() {
     setIsActionLoading(false)
   }
 
+  async function handleDeleteRequirement(requirementId: string) {
+    setIsActionLoading(true)
+    setError(null)
+    const { error: deleteError } = await deleteRequirement(requirementId)
+    if (deleteError) {
+      setError(deleteError)
+      setIsActionLoading(false)
+      return
+    }
+
+    await loadRequirements()
+    setIsActionLoading(false)
+  }
+
+  async function handleBulkDelete(
+    requirementIds: string[],
+    clearSelection: () => void
+  ) {
+    setIsActionLoading(true)
+    setError(null)
+    const { error: deleteError } = await bulkDeleteRequirements(requirementIds)
+    if (deleteError) {
+      setError(deleteError)
+      setIsActionLoading(false)
+      return
+    }
+
+    clearSelection()
+    await loadRequirements()
+    setIsActionLoading(false)
+  }
+
   const requirementColumns = useMemo<ColumnDef<RequirementRow>[]>(
     () => [
       {
@@ -313,6 +348,14 @@ export default function RequirementsPage() {
               <ArchiveIcon />
               Archive Requirement
             </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={isActionLoading}
+              onClick={() => void handleDeleteRequirement(row.id)}
+            >
+              <Trash2Icon />
+              Delete Requirement
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -379,6 +422,20 @@ export default function RequirementsPage() {
             onClick={clearSelection}
           >
             Clear Selection
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isActionLoading || selectedRows.length === 0}
+            onClick={() =>
+              void handleBulkDelete(
+                selectedRows.map((row) => row.id),
+                clearSelection
+              )
+            }
+          >
+            <Trash2Icon />
+            Delete Selected
           </Button>
         </div>
       )
@@ -484,6 +541,7 @@ export default function RequirementsPage() {
                 getRowId={(row) => row.id}
                 filterColumnId="requirement"
                 filterPlaceholder="Filter active work..."
+                renderRowActions={renderRowActions}
                 enableRowSelection={false}
               />
             )}

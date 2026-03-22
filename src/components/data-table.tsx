@@ -1,11 +1,14 @@
 import * as React from "react"
 import {
+  type ExpandedState,
   type ColumnFiltersState,
   type ColumnDef,
+  type Row,
   type SortingState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
@@ -37,12 +40,15 @@ type DataTableProps<TData, TValue> = {
   filterColumnId?: string
   filterPlaceholder?: string
   getRowId?: (row: TData) => string
+  getSubRows?: (row: TData) => TData[] | undefined
+  defaultExpandAllRows?: boolean
+  getRowClassName?: (row: TData) => string | undefined
   renderRowActions?: (row: TData) => React.ReactNode
   renderSelectionActions?: (
     selectedRows: TData[],
     clearSelection: () => void
   ) => React.ReactNode
-  enableRowSelection?: boolean
+  enableRowSelection?: boolean | ((row: TData) => boolean)
 }
 
 export function DataTable<TData, TValue>({
@@ -51,6 +57,9 @@ export function DataTable<TData, TValue>({
   filterColumnId,
   filterPlaceholder = "Filter...",
   getRowId,
+  getSubRows,
+  defaultExpandAllRows = false,
+  getRowClassName,
   renderRowActions,
   renderSelectionActions,
   enableRowSelection = true,
@@ -62,6 +71,16 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const [expanded, setExpanded] = React.useState<ExpandedState>(
+    defaultExpandAllRows ? true : {}
+  )
+
+  const resolvedEnableRowSelection = React.useMemo(() => {
+    if (typeof enableRowSelection === "function") {
+      return (row: Row<TData>) => enableRowSelection(row.original)
+    }
+    return enableRowSelection
+  }, [enableRowSelection])
 
   const selectionColumn = React.useMemo<ColumnDef<TData>>(
     () => ({
@@ -76,13 +95,14 @@ export function DataTable<TData, TValue>({
           aria-label="Select all"
         />
       ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
+      cell: ({ row }) =>
+        row.getCanSelect() ? (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ) : null,
       enableSorting: false,
       enableHiding: false,
     }),
@@ -113,7 +133,9 @@ export function DataTable<TData, TValue>({
     data,
     columns: allColumns,
     getRowId,
+    getSubRows,
     getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -121,18 +143,22 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    enableRowSelection,
+    onExpandedChange: setExpanded,
+    filterFromLeafRows: Boolean(getSubRows),
+    paginateExpandedRows: false,
+    enableRowSelection: resolvedEnableRowSelection,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      expanded,
     },
   })
 
   const selectedRows = table
-    .getFilteredSelectedRowModel()
-    .rows.map((row) => row.original)
+    .getSelectedRowModel()
+    .flatRows.map((row) => row.original)
 
   return (
     <div>
@@ -200,6 +226,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={getRowClassName?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

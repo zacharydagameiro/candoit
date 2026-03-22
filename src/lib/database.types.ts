@@ -161,6 +161,12 @@ export interface Database {
           fit_score: number | null
           notes: string | null
           match_status: Database["public"]["Enums"]["requirement_match_status"]
+          outreach_state: string
+          outreach_attempts: number
+          outreach_claimed_at: string | null
+          outreach_last_attempted_at: string | null
+          outreach_contacted_at: string | null
+          outreach_last_error: string | null
           created_at: string
           updated_at: string
         }
@@ -171,6 +177,12 @@ export interface Database {
           fit_score?: number | null
           notes?: string | null
           match_status?: Database["public"]["Enums"]["requirement_match_status"]
+          outreach_state?: string
+          outreach_attempts?: number
+          outreach_claimed_at?: string | null
+          outreach_last_attempted_at?: string | null
+          outreach_contacted_at?: string | null
+          outreach_last_error?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -181,6 +193,12 @@ export interface Database {
           fit_score?: number | null
           notes?: string | null
           match_status?: Database["public"]["Enums"]["requirement_match_status"]
+          outreach_state?: string
+          outreach_attempts?: number
+          outreach_claimed_at?: string | null
+          outreach_last_attempted_at?: string | null
+          outreach_contacted_at?: string | null
+          outreach_last_error?: string | null
           created_at?: string
           updated_at?: string
         }
