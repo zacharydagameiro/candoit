@@ -3,9 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ArchiveIcon,
   CircleCheckBigIcon,
+  ExternalLinkIcon,
   LoaderCircleIcon,
   MoreHorizontalIcon,
   PlayCircleIcon,
+  RefreshCwIcon,
   RotateCcwIcon,
   TargetIcon,
   Trash2Icon,
@@ -25,6 +27,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { useAppLayout } from "@/hooks/use-app-layout"
 import {
   archiveRequirement,
@@ -32,7 +41,9 @@ import {
   bulkArchiveRequirements,
   bulkUpdateRequirementStatus,
   deleteRequirement,
+  listSuppliersForRequirement,
   listRequirementsForProduct,
+  type RequirementSupplierSummary,
   updateRequirementStatus,
   type RequirementWithFoundCount,
   type UserSettableRequirementStatus,
@@ -86,6 +97,16 @@ export default function RequirementsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedRequirementId, setSelectedRequirementId] = useState<string | null>(
+    null
+  )
+  const [detailSuppliers, setDetailSuppliers] = useState<RequirementSupplierSummary[]>(
+    []
+  )
+  const [isDetailSuppliersLoading, setIsDetailSuppliersLoading] = useState(false)
+  const [detailSuppliersError, setDetailSuppliersError] = useState<string | null>(
+    null
+  )
 
   const loadRequirements = useCallback(async () => {
     setIsLoading(true)
@@ -112,6 +133,9 @@ export default function RequirementsPage() {
       })) ?? []
 
     setRows(mappedRows)
+    setSelectedRequirementId((currentId) =>
+      currentId && mappedRows.some((row) => row.id === currentId) ? currentId : null
+    )
     setError(null)
     setIsLoading(false)
   }, [currentProduct.id])
@@ -291,6 +315,38 @@ export default function RequirementsPage() {
     () => rows.reduce((total, row) => total + row.amountFound, 0),
     [rows]
   )
+  const selectedRequirement = useMemo(
+    () => rows.find((row) => row.id === selectedRequirementId) ?? null,
+    [rows, selectedRequirementId]
+  )
+
+  useEffect(() => {
+    if (!selectedRequirementId) {
+      setDetailSuppliers([])
+      setDetailSuppliersError(null)
+      setIsDetailSuppliersLoading(false)
+      return
+    }
+
+    let isCancelled = false
+    setIsDetailSuppliersLoading(true)
+    setDetailSuppliersError(null)
+
+    void listSuppliersForRequirement(selectedRequirementId).then(({ data, error }) => {
+      if (isCancelled) return
+      if (error) {
+        setDetailSuppliers([])
+        setDetailSuppliersError(error)
+      } else {
+        setDetailSuppliers(data ?? [])
+      }
+      setIsDetailSuppliersLoading(false)
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedRequirementId, rows])
 
   const renderRowActions = useCallback(
     (row: RequirementRow) => {
@@ -487,13 +543,24 @@ export default function RequirementsPage() {
 
       <section>
         <div className="rounded-2xl border bg-card shadow-sm">
-          <div className="border-b px-6 py-5">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Queue
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Requirements waiting to start supplier search.
-            </p>
+          <div className="flex items-center justify-between gap-3 border-b px-6 py-5">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Queue
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Requirements waiting to start supplier search.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isLoading || isActionLoading}
+              onClick={() => void loadRequirements()}
+            >
+              <RefreshCwIcon />
+              Refresh
+            </Button>
           </div>
           <div className="px-4 py-4 sm:px-6">
             {isLoading ? (
@@ -511,6 +578,8 @@ export default function RequirementsPage() {
                 filterPlaceholder="Filter queue..."
                 renderRowActions={renderRowActions}
                 renderSelectionActions={renderSelectionActions}
+                onRowClick={(row) => setSelectedRequirementId(row.id)}
+                getRowClassName={() => "cursor-pointer"}
               />
             )}
           </div>
@@ -519,13 +588,24 @@ export default function RequirementsPage() {
 
       <section>
         <div className="rounded-2xl border bg-card shadow-sm">
-          <div className="border-b px-6 py-5">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Supplier Search Progress
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Requirements currently being worked on by the agent, or completed.
-            </p>
+          <div className="flex items-center justify-between gap-3 border-b px-6 py-5">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Supplier Search Progress
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Requirements currently being worked on by the agent, or completed.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isLoading || isActionLoading}
+              onClick={() => void loadRequirements()}
+            >
+              <RefreshCwIcon />
+              Refresh
+            </Button>
           </div>
           <div className="px-4 py-4 sm:px-6">
             {isLoading ? (
@@ -543,11 +623,229 @@ export default function RequirementsPage() {
                 filterPlaceholder="Filter active work..."
                 renderRowActions={renderRowActions}
                 enableRowSelection={false}
+                onRowClick={(row) => setSelectedRequirementId(row.id)}
+                getRowClassName={() => "cursor-pointer"}
               />
             )}
           </div>
         </div>
       </section>
+
+      <Sheet
+        open={Boolean(selectedRequirement)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRequirementId(null)
+        }}
+      >
+        <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-2xl">
+          {selectedRequirement ? (
+            <div className="flex h-full flex-col">
+              <SheetHeader className="border-b px-6 py-5">
+                <SheetTitle className="text-xl">
+                  {selectedRequirement.requirement}
+                </SheetTitle>
+                <SheetDescription>{currentProduct.name}</SheetDescription>
+              </SheetHeader>
+
+              <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+                <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Status
+                    </p>
+                    <span
+                      className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusStyles[selectedRequirement.status]}`}
+                    >
+                      {selectedRequirement.status}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Category
+                    </p>
+                    <p className="mt-2 text-sm">{selectedRequirement.category}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Suppliers Found
+                    </p>
+                    <p className="mt-2 text-sm font-medium">
+                      {selectedRequirement.amountFound}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Current Definition
+                  </p>
+                  <div className="mt-2 rounded-xl border bg-card p-4">
+                    <p className="whitespace-pre-wrap text-sm leading-6">
+                      {selectedRequirement.currentDefinition || "No description yet."}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Supplier Search State
+                    </p>
+                  </div>
+                  <div className="rounded-xl border bg-card p-4">
+                    {selectedRequirement.rawStatus === "ready" ? (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          disabled={isActionLoading}
+                          onClick={() =>
+                            void handleSetStatus(selectedRequirement.id, "queued")
+                          }
+                        >
+                          <PlayCircleIcon />
+                          Ready To Search
+                        </Button>
+                      </div>
+                    ) : null}
+                    {selectedRequirement.rawStatus === "queued" ? (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isActionLoading}
+                          onClick={() =>
+                            void handleSetStatus(selectedRequirement.id, "ready")
+                          }
+                        >
+                          <RotateCcwIcon />
+                          Set Waiting
+                        </Button>
+                      </div>
+                    ) : null}
+                    {selectedRequirement.rawStatus === "finding" ||
+                    selectedRequirement.rawStatus === "found" ? (
+                      <p className="text-sm text-muted-foreground">
+                        This requirement is controlled by the agent while in progress
+                        or after completion.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Matched Suppliers
+                  </p>
+                  <div className="mt-2 rounded-xl border bg-card p-4">
+                    {isDetailSuppliersLoading ? (
+                      <p className="text-sm text-muted-foreground">
+                        Loading suppliers...
+                      </p>
+                    ) : detailSuppliersError ? (
+                      <p className="text-sm text-destructive">{detailSuppliersError}</p>
+                    ) : detailSuppliers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No suppliers linked to this requirement yet.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {detailSuppliers.map((supplier) => (
+                          <div
+                            key={supplier.linkId}
+                            className="rounded-lg border bg-background p-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {supplier.supplierName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {supplier.region ?? "Unknown region"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Fit</p>
+                                <p className="text-sm font-medium">
+                                  {supplier.fitScore !== null
+                                    ? `${Math.round(supplier.fitScore)}%`
+                                    : "—"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <span className="rounded-full border bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
+                                {supplier.matchStatus}
+                              </span>
+                              <span className="rounded-full border bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                                outreach: {supplier.outreachState}
+                              </span>
+                            </div>
+                            {(supplier.website || supplier.contactUrl) && (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {supplier.website ? (
+                                  <a
+                                    href={supplier.website}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    <Button variant="outline" size="sm">
+                                      Website
+                                      <ExternalLinkIcon />
+                                    </Button>
+                                  </a>
+                                ) : null}
+                                {supplier.contactUrl ? (
+                                  <a
+                                    href={supplier.contactUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    <Button variant="outline" size="sm">
+                                      Contact
+                                      <ExternalLinkIcon />
+                                    </Button>
+                                  </a>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t bg-background px-6 py-4">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedRequirementId(null)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={isActionLoading || !isUserMutableStatus(selectedRequirement.rawStatus)}
+                    onClick={() => void handleArchiveRequirement(selectedRequirement.id)}
+                  >
+                    <ArchiveIcon />
+                    Archive
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={isActionLoading}
+                    onClick={() => void handleDeleteRequirement(selectedRequirement.id)}
+                  >
+                    <Trash2Icon />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

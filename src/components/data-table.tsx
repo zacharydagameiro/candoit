@@ -49,6 +49,7 @@ type DataTableProps<TData, TValue> = {
     clearSelection: () => void
   ) => React.ReactNode
   enableRowSelection?: boolean | ((row: TData) => boolean)
+  onRowClick?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -63,6 +64,7 @@ export function DataTable<TData, TValue>({
   renderRowActions,
   renderSelectionActions,
   enableRowSelection = true,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -227,6 +229,18 @@ export function DataTable<TData, TValue>({
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className={getRowClassName?.(row.original)}
+                  onClick={(event) => {
+                    if (!onRowClick) return
+                    const target = event.target as HTMLElement | null
+                    if (
+                      target?.closest(
+                        "button,a,input,label,[role='menuitem'],[data-row-click-ignore='true']"
+                      )
+                    ) {
+                      return
+                    }
+                    onRowClick(row.original)
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

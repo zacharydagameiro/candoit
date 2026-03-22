@@ -45,7 +45,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={workspaceNavItems} label="Workspace" />
-        <NavMain items={chatNavItems} label="Chats" />
+        <NavMain items={chatNavItems} label="Chat" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} onSignOut={onSignOut} />

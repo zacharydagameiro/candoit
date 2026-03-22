@@ -5,6 +5,7 @@ import {
   GlobeIcon,
   MailPlusIcon,
   MoreHorizontalIcon,
+  RefreshCwIcon,
   TargetIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -23,6 +24,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { useAppLayout } from "@/hooks/use-app-layout"
 import {
   bulkUpdateSupplierMatchStatus,
@@ -44,9 +52,15 @@ type SupplierTableRow = {
   region: string
   status: SupplierDisplayStatus | null
   fitScore: number | null
+  matchStatus?: RequirementMatchStatus
+  outreachState?: SupplierOutreachState
   linkId?: string
   website?: string | null
   contactUrl?: string | null
+  email?: string | null
+  phone?: string | null
+  country?: string | null
+  notes?: string | null
   subRows?: SupplierTableRow[]
 }
 
@@ -121,6 +135,7 @@ export default function SuppliersPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [regionFilter, setRegionFilter] = useState("all")
   const [requirementFilter, setRequirementFilter] = useState("all")
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null)
 
   const loadSupplierMatches = useCallback(async () => {
     setIsLoading(true)
@@ -217,9 +232,15 @@ export default function SuppliersPage() {
             region: match.region ?? "Unknown",
             status: toDisplayStatus(match),
             fitScore: match.fitScore,
+            matchStatus: match.matchStatus,
+            outreachState: match.outreachState,
             linkId: match.linkId,
             website: match.website,
             contactUrl: match.contactUrl,
+            email: match.email,
+            phone: match.phone,
+            country: match.country,
+            notes: match.notes,
           }))
 
         return {
@@ -236,6 +257,22 @@ export default function SuppliersPage() {
       })
   }, [filteredMatches])
 
+  const rowById = useMemo(() => {
+    const map = new Map<string, SupplierTableRow>()
+    for (const requirementRow of groupedRequirementRows) {
+      map.set(requirementRow.id, requirementRow)
+      for (const supplierRow of requirementRow.subRows ?? []) {
+        map.set(supplierRow.id, supplierRow)
+      }
+    }
+    return map
+  }, [groupedRequirementRows])
+
+  const selectedRow = useMemo(
+    () => (selectedRowId ? rowById.get(selectedRowId) ?? null : null),
+    [rowById, selectedRowId]
+  )
+
   const supplierColumns = useMemo<ColumnDef<SupplierTableRow>[]>(
     () => [
       {
@@ -251,6 +288,7 @@ export default function SuppliersPage() {
               <button
                 type="button"
                 onClick={row.getToggleExpandedHandler()}
+                data-row-click-ignore="true"
                 className="inline-flex items-center gap-2 font-medium"
               >
                 <ChevronRightIcon
@@ -472,7 +510,7 @@ export default function SuppliersPage() {
       )
     }
 
-    if (!row.linkId || !row.status) {
+    if (!row.linkId || !row.status || !row.matchStatus) {
       return null
     }
 
@@ -521,7 +559,7 @@ export default function SuppliersPage() {
               {userSettableStatuses.map((status) => (
                 <DropdownMenuItem
                   key={status}
-                  disabled={isActionLoading || row.status === status}
+                  disabled={isActionLoading || row.matchStatus === status}
                   onSelect={() => void handleSetStatus(linkId, status)}
                 >
                   {matchStatusLabels[status]}
@@ -680,13 +718,24 @@ export default function SuppliersPage() {
       </section>
 
       <section className="rounded-2xl border bg-card shadow-sm">
-        <div className="border-b px-6 py-5">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Supplier Workspace
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Grouped by requirement, loaded live from your Supabase data.
-          </p>
+        <div className="flex items-center justify-between gap-3 border-b px-6 py-5">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Supplier Workspace
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Grouped by requirement, loaded live from your Supabase data.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isLoading || isActionLoading}
+            onClick={() => void loadSupplierMatches()}
+          >
+            <RefreshCwIcon />
+            Refresh
+          </Button>
         </div>
         <div className="flex flex-wrap gap-2 px-4 pt-4 sm:px-6">
           <select
@@ -747,16 +796,300 @@ export default function SuppliersPage() {
                 renderRowActions={renderRowActions}
                 renderSelectionActions={renderSelectionActions}
                 enableRowSelection={(row) => row.rowType === "supplier"}
+                onRowClick={(row) => setSelectedRowId(row.id)}
                 getRowClassName={(row) =>
                   row.rowType === "requirement"
-                    ? "bg-muted/70 hover:bg-muted/80"
-                    : undefined
+                    ? "cursor-pointer bg-muted/70 hover:bg-muted/80"
+                    : "cursor-pointer"
                 }
               />
             </>
           )}
         </div>
       </section>
+
+      <Sheet
+        open={Boolean(selectedRow)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRowId(null)
+        }}
+      >
+        <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-2xl">
+          {selectedRow?.rowType === "requirement" ? (
+            <div className="flex h-full flex-col">
+              <SheetHeader className="border-b px-6 py-5">
+                <SheetTitle>{selectedRow.requirement}</SheetTitle>
+                <SheetDescription>Requirement Group</SheetDescription>
+              </SheetHeader>
+              <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Suppliers In Group
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {(selectedRow.subRows ?? []).length}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Suppliers
+                  </p>
+                  <div className="space-y-2">
+                    {(selectedRow.subRows ?? []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No supplier rows in this requirement group.
+                      </p>
+                    ) : (
+                      (selectedRow.subRows ?? []).map((supplierRow) => (
+                        <div key={supplierRow.id} className="rounded-lg border bg-card p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium">{supplierRow.supplier}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {supplierRow.region}
+                              </p>
+                            </div>
+                            <p className="text-sm font-medium">
+                              {supplierRow.fitScore !== null
+                                ? `${Math.round(supplierRow.fitScore)}%`
+                                : "—"}
+                            </p>
+                          </div>
+                          {supplierRow.status ? (
+                            <span
+                              className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusStyles[supplierRow.status]}`}
+                            >
+                              {statusLabels[supplierRow.status]}
+                            </span>
+                          ) : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="border-t bg-background px-6 py-4">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => setSelectedRowId(null)}>
+                    Close
+                  </Button>
+                  <Button
+                    disabled={
+                      isActionLoading ||
+                      !(selectedRow.subRows ?? []).some((row) => Boolean(row.linkId))
+                    }
+                    onClick={() =>
+                      void handleContactSuppliers(
+                        (selectedRow.subRows ?? [])
+                          .map((row) => row.linkId)
+                          .filter((linkId): linkId is string => Boolean(linkId)),
+                        selectedRow.requirement
+                      )
+                    }
+                  >
+                    <MailPlusIcon />
+                    Contact Suppliers
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={
+                      isActionLoading ||
+                      !(selectedRow.subRows ?? []).some((row) => Boolean(row.linkId))
+                    }
+                    onClick={() =>
+                      void handleDeleteRows(
+                        (selectedRow.subRows ?? [])
+                          .map((row) => row.linkId)
+                          .filter((linkId): linkId is string => Boolean(linkId)),
+                        () => setSelectedRowId(null)
+                      )
+                    }
+                  >
+                    <Trash2Icon />
+                    Delete Rows
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {selectedRow?.rowType === "supplier" ? (
+            <div className="flex h-full flex-col">
+              <SheetHeader className="border-b px-6 py-5">
+                <SheetTitle>{selectedRow.supplier}</SheetTitle>
+                <SheetDescription>{selectedRow.requirement}</SheetDescription>
+              </SheetHeader>
+              <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+                <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Match Status
+                    </p>
+                    {selectedRow.status ? (
+                      <span
+                        className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusStyles[selectedRow.status]}`}
+                      >
+                        {statusLabels[selectedRow.status]}
+                      </span>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">—</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Fit
+                    </p>
+                    <p className="mt-2 text-sm font-medium">
+                      {selectedRow.fitScore !== null
+                        ? `${Math.round(selectedRow.fitScore)}%`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Region
+                    </p>
+                    <p className="mt-2 text-sm">{selectedRow.region}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Products
+                  </p>
+                  <div className="mt-2 rounded-xl border bg-card p-4">
+                    <p className="text-sm leading-6">{selectedRow.products || "—"}</p>
+                  </div>
+                </div>
+                <div className="grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Website URL
+                    </p>
+                    <p className="mt-2 break-all text-sm">
+                      {selectedRow.website ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Contact URL
+                    </p>
+                    <p className="mt-2 break-all text-sm">
+                      {selectedRow.contactUrl ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Email
+                    </p>
+                    <p className="mt-2 break-all text-sm">
+                      {selectedRow.email ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Phone
+                    </p>
+                    <p className="mt-2 text-sm">{selectedRow.phone ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Country
+                    </p>
+                    <p className="mt-2 text-sm">{selectedRow.country ?? "—"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Description
+                  </p>
+                  <div className="mt-2 rounded-xl border bg-card p-4">
+                    <p className="whitespace-pre-wrap text-sm leading-6">
+                      {selectedRow.notes ?? "No supplier description available."}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Set Match Status
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {userSettableStatuses.map((status) => (
+                      <Button
+                        key={status}
+                        variant={
+                          selectedRow.matchStatus === status ? "default" : "outline"
+                        }
+                        size="sm"
+                        disabled={
+                          isActionLoading ||
+                          !selectedRow.linkId ||
+                          selectedRow.matchStatus === status
+                        }
+                        onClick={() => {
+                          if (!selectedRow.linkId) return
+                          void handleSetStatus(selectedRow.linkId, status)
+                        }}
+                      >
+                        {matchStatusLabels[status]}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="border-t bg-background px-6 py-4">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => setSelectedRowId(null)}>
+                    Close
+                  </Button>
+                  {selectedRow.website ? (
+                    <a href={selectedRow.website} target="_blank" rel="noreferrer">
+                      <Button variant="outline">
+                        <GlobeIcon />
+                        Website
+                      </Button>
+                    </a>
+                  ) : null}
+                  {selectedRow.contactUrl ? (
+                    <a href={selectedRow.contactUrl} target="_blank" rel="noreferrer">
+                      <Button variant="outline">
+                        <MailPlusIcon />
+                        Contact Form
+                      </Button>
+                    </a>
+                  ) : null}
+                  <Button
+                    variant="destructive"
+                    disabled={isActionLoading || !selectedRow.linkId}
+                    onClick={async () => {
+                      if (!selectedRow.linkId) return
+                      setIsActionLoading(true)
+                      setError(null)
+                      setNotice(null)
+
+                      const { error: deleteError } = await deleteSupplierMatch(
+                        selectedRow.linkId
+                      )
+                      if (deleteError) {
+                        setError(deleteError)
+                        setIsActionLoading(false)
+                        return
+                      }
+
+                      setNotice("Deleted 1 row.")
+                      setSelectedRowId(null)
+                      await loadSupplierMatches()
+                      setIsActionLoading(false)
+                    }}
+                  >
+                    <Trash2Icon />
+                    Delete Row
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

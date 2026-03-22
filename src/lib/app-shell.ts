@@ -54,23 +54,9 @@ export const appNavItems: AppNavItem[] = [
   },
   {
     section: "chats",
-    title: "Chats",
+    title: "Chat",
     to: "/chats/discovery",
     icon: MessageSquareMoreIcon,
-    items: [
-      {
-        title: "Discovery",
-        to: "/chats/discovery",
-      },
-      {
-        title: "Outreach",
-        to: "/chats/outreach",
-      },
-      {
-        title: "Negotiation",
-        to: "/chats/negotiation",
-      },
-    ],
   },
 ]
 

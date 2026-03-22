@@ -23,7 +23,16 @@ type RequirementSupplierRow = {
 
 type SupplierRow = Pick<
   Database["public"]["Tables"]["suppliers"]["Row"],
-  "id" | "name" | "website" | "contact_url" | "region" | "products"
+  | "id"
+  | "name"
+  | "website"
+  | "contact_url"
+  | "email"
+  | "phone"
+  | "country"
+  | "region"
+  | "products"
+  | "notes"
 >
 
 export type RequirementMatchStatus =
@@ -46,6 +55,10 @@ export type SupplierMatchForRequirement = {
   products: string[]
   website: string | null
   contactUrl: string | null
+  email: string | null
+  phone: string | null
+  country: string | null
+  notes: string | null
   fitScore: number | null
   matchStatus: RequirementMatchStatus
   outreachState: SupplierOutreachState
@@ -112,7 +125,9 @@ export async function listSupplierMatchesForProduct(
     const supplierIds = Array.from(new Set(links.map((link) => link.supplier_id)))
     const { data: suppliersData, error: suppliersError } = await supabase
       .from("suppliers")
-      .select("id, name, website, contact_url, region, products")
+      .select(
+        "id, name, website, contact_url, email, phone, country, region, products, notes"
+      )
       .in("id", supplierIds)
 
     if (suppliersError) {
@@ -148,6 +163,10 @@ export async function listSupplierMatchesForProduct(
           products: supplier.products ?? [],
           website: supplier.website,
           contactUrl: supplier.contact_url,
+          email: supplier.email,
+          phone: supplier.phone,
+          country: supplier.country,
+          notes: supplier.notes,
           fitScore: link.fit_score,
           matchStatus: link.match_status,
           outreachState: link.outreach_state,

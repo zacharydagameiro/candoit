@@ -258,6 +258,18 @@ max_frequency = "5s"
 # Configure MFA via WebAuthn
 # [auth.mfa.web_authn]
 # enroll_enabled = true
+
+[functions.chat-discovery-stream]
+verify_jwt = false
+
+[functions.contact-suppliers-headless]
+verify_jwt = false
+
+[functions.embed-suppliers]
+verify_jwt = false
+
+[functions.match-requirements-suppliers-bulk]
+verify_jwt = false
 # verify_enabled = true
 
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,

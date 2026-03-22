@@ -11,6 +11,18 @@ export type RequirementSupplierLinkRecord =
 export type RequirementWithFoundCount = RequirementRecord & {
   amountFound: number
 }
+export type RequirementSupplierSummary = {
+  linkId: string
+  supplierId: string
+  supplierName: string
+  website: string | null
+  contactUrl: string | null
+  region: string | null
+  products: string[]
+  fitScore: number | null
+  matchStatus: Database["public"]["Enums"]["requirement_match_status"]
+  outreachState: "pending" | "ready" | "contacting" | "contacted" | "failed"
+}
 
 type Result<T> = {
   data: T | null
@@ -119,6 +131,113 @@ export async function listRequirementsForProduct(
       data: null,
       error:
         error instanceof Error ? error.message : "Unable to load requirements.",
+    }
+  }
+}
+
+export async function listSuppliersForRequirement(
+  requirementId: string
+): Promise<Result<RequirementSupplierSummary[]>> {
+  if (!supabase) {
+    return {
+      data: null,
+      error: "Supabase environment variables are missing.",
+    }
+  }
+
+  try {
+    const { data: linksData, error: linksError } = await supabase
+      .from("requirement_suppliers")
+      .select(
+        "id, supplier_id, fit_score, match_status, outreach_state"
+      )
+      .eq("requirement_id", requirementId)
+
+    if (linksError) {
+      return {
+        data: null,
+        error: linksError.message,
+      }
+    }
+
+    const links =
+      (linksData as
+        | Pick<
+            Database["public"]["Tables"]["requirement_suppliers"]["Row"],
+            "id" | "supplier_id" | "fit_score" | "match_status" | "outreach_state"
+          >[]
+        | null) ?? []
+
+    if (!links.length) {
+      return {
+        data: [],
+        error: null,
+      }
+    }
+
+    const supplierIds = Array.from(new Set(links.map((link) => link.supplier_id)))
+    const { data: suppliersData, error: suppliersError } = await supabase
+      .from("suppliers")
+      .select("id, name, website, contact_url, region, products")
+      .in("id", supplierIds)
+
+    if (suppliersError) {
+      return {
+        data: null,
+        error: suppliersError.message,
+      }
+    }
+
+    const suppliers =
+      (suppliersData as
+        | Pick<
+            Database["public"]["Tables"]["suppliers"]["Row"],
+            "id" | "name" | "website" | "contact_url" | "region" | "products"
+          >[]
+        | null) ?? []
+
+    const supplierById = new Map(
+      suppliers.map((supplier) => [supplier.id, supplier])
+    )
+
+    const data = links
+      .map((link) => {
+        const supplier = supplierById.get(link.supplier_id)
+        if (!supplier) return null
+        return {
+          linkId: link.id,
+          supplierId: supplier.id,
+          supplierName: supplier.name,
+          website: supplier.website,
+          contactUrl: supplier.contact_url,
+          region: supplier.region,
+          products: supplier.products ?? [],
+          fitScore: link.fit_score,
+          matchStatus: link.match_status,
+          outreachState: (link.outreach_state ??
+            "pending") as RequirementSupplierSummary["outreachState"],
+        } satisfies RequirementSupplierSummary
+      })
+      .filter(
+        (row): row is RequirementSupplierSummary => Boolean(row)
+      )
+      .sort((left, right) => {
+        const fitDiff = (right.fitScore ?? -1) - (left.fitScore ?? -1)
+        if (fitDiff !== 0) return fitDiff
+        return left.supplierName.localeCompare(right.supplierName)
+      })
+
+    return {
+      data,
+      error: null,
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load suppliers for requirement.",
     }
   }
 }
