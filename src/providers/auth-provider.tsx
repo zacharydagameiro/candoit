@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadProfile = React.useCallback(async (userId: string) => {
     const { data } = await getProfile(userId)
-    setProfile(data)
+    return data
   }, [])
 
   React.useEffect(() => {
@@ -62,7 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data?.user ?? null)
 
         if (data?.user) {
-          await loadProfile(data.user.id)
+          const nextProfile = await loadProfile(data.user.id)
+
+          if (!isMounted) {
+            return
+          }
+
+          setProfile(nextProfile)
         } else {
           setProfile(null)
         }
@@ -75,25 +81,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void initializeAuth()
 
-    const subscription = onAuthStateChange(async (_event, nextSession) => {
-      try {
-        if (!isMounted) {
-          return
-        }
-
-        setSession(nextSession)
-        setUser(nextSession?.user ?? null)
-
-        if (nextSession?.user) {
-          await loadProfile(nextSession.user.id)
-        } else {
-          setProfile(null)
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false)
-        }
+    const subscription = onAuthStateChange((_event, nextSession) => {
+      if (!isMounted) {
+        return
       }
+
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
+
+      if (!nextSession?.user) {
+        setProfile(null)
+        setIsLoading(false)
+        return
+      }
+
+      void loadProfile(nextSession.user.id)
+        .then((nextProfile) => {
+          if (!isMounted) {
+            return
+          }
+
+          setProfile(nextProfile)
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLoading(false)
+          }
+        })
     })
 
     return () => {
@@ -127,7 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        await loadProfile(user.id)
+        const nextProfile = await loadProfile(user.id)
+        setProfile(nextProfile)
       },
     }),
     [isLoading, loadProfile, profile, session, user]

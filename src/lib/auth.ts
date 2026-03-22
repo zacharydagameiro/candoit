@@ -36,11 +36,7 @@ export async function getCurrentSession(): Promise<Result<Session>> {
   }
 
   try {
-    const { data, error } = await withTimeout(
-      supabase.auth.getSession(),
-      5000,
-      "Timed out while checking the current session."
-    )
+    const { data, error } = await supabase.auth.getSession()
 
     return {
       data: data.session,

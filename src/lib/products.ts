@@ -26,16 +26,10 @@ export async function listProductsForCurrentUser(): Promise<
   }
 
   try {
-    const { data, error } = await withTimeout(
-      Promise.resolve(
-        supabase
-          .from("products")
-          .select("*")
-          .order("created_at", { ascending: true })
-      ),
-      5000,
-      "Timed out while loading products."
-    )
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: true })
 
     return {
       data: (data as ProductRecord[] | null) ?? [],
