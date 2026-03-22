@@ -49,22 +49,8 @@ export const appNavItems: AppNavItem[] = [
   {
     section: "workspace",
     title: "Suppliers",
-    to: "/suppliers/directory",
+    to: "/suppliers",
     icon: BoxesIcon,
-    items: [
-      {
-        title: "Directory",
-        to: "/suppliers/directory",
-      },
-      {
-        title: "Contacting",
-        to: "/suppliers/contacting",
-      },
-      {
-        title: "Awaiting Response",
-        to: "/suppliers/awaiting-response",
-      },
-    ],
   },
   {
     section: "chats",

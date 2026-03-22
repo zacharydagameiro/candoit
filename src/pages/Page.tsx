@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, Outlet, useLocation } from "react-router-dom"
+import { PlusIcon } from "lucide-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { EmptyProductsState } from "@/components/empty-products-state"
@@ -12,6 +13,14 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import {
   SidebarInset,
   SidebarProvider,
@@ -36,6 +45,11 @@ export default function Page() {
   const [isProductsLoading, setIsProductsLoading] = useState(true)
   const [productsError, setProductsError] = useState<string | null>(null)
   const [isCreatingProduct, setIsCreatingProduct] = useState(false)
+  const [isCreateProductSheetOpen, setIsCreateProductSheetOpen] = useState(false)
+  const [headerProductName, setHeaderProductName] = useState("")
+  const [headerProductCategory, setHeaderProductCategory] = useState("")
+  const [headerProductDescription, setHeaderProductDescription] = useState("")
+  const [headerCreateError, setHeaderCreateError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -127,6 +141,38 @@ export default function Page() {
     await signOut()
   }
 
+  async function handleHeaderCreateProduct(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    setHeaderCreateError(null)
+    setIsCreatingProduct(true)
+
+    const { data, error } = await createProductForCurrentUser({
+      name: headerProductName,
+      category: headerProductCategory,
+      description: headerProductDescription,
+    })
+
+    setIsCreatingProduct(false)
+
+    if (error) {
+      setHeaderCreateError(error)
+      return
+    }
+
+    if (!data) {
+      setHeaderCreateError("Product creation returned no record.")
+      return
+    }
+
+    setProducts((currentProducts) => [...currentProducts, data])
+    setCurrentProductId(data.id)
+    setIsCreateProductSheetOpen(false)
+    setHeaderProductName("")
+    setHeaderProductCategory("")
+    setHeaderProductDescription("")
+  }
+
   return (
     <TooltipProvider>
       <SidebarProvider>
@@ -165,16 +211,96 @@ export default function Page() {
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
-            <div className="ml-auto hidden px-4 text-right md:block">
-              <p className="text-sm font-medium">
-                {currentProduct?.name ?? "No active product"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {currentProduct?.category ?? "Create a product to begin."}
-              </p>
+            <div className="ml-auto flex items-center gap-3 px-4">
+              <div className="hidden text-right md:block">
+                <p className="text-sm font-medium">
+                  {currentProduct?.name ?? "No active product"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {currentProduct?.category ?? "Create a product to begin."}
+                </p>
+              </div>
+              <Sheet
+                open={isCreateProductSheetOpen}
+                onOpenChange={setIsCreateProductSheetOpen}
+              >
+                <SheetTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent"
+                    onClick={() => {
+                      setHeaderCreateError(null)
+                    }}
+                  >
+                    <PlusIcon className="size-4" />
+                    New Product
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="right">
+                  <SheetHeader>
+                    <SheetTitle>Create Product</SheetTitle>
+                    <SheetDescription>
+                      Add a new product and switch the workspace to it.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <form
+                    className="flex flex-1 flex-col gap-4 px-4 pb-4"
+                    onSubmit={handleHeaderCreateProduct}
+                  >
+                    {headerCreateError ? (
+                      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                        {headerCreateError}
+                      </div>
+                    ) : null}
+
+                    <label className="grid gap-2 text-sm font-medium">
+                      Product name
+                      <input
+                        value={headerProductName}
+                        onChange={(event) => setHeaderProductName(event.target.value)}
+                        placeholder="Prime Drink"
+                        required
+                        className="h-10 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium">
+                      Category
+                      <input
+                        value={headerProductCategory}
+                        onChange={(event) =>
+                          setHeaderProductCategory(event.target.value)
+                        }
+                        placeholder="Energy Drink"
+                        className="h-10 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium">
+                      Description
+                      <textarea
+                        value={headerProductDescription}
+                        onChange={(event) =>
+                          setHeaderProductDescription(event.target.value)
+                        }
+                        placeholder="High-level product brief and sourcing goals."
+                        className="min-h-28 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </label>
+
+                    <button
+                      type="submit"
+                      disabled={isCreatingProduct}
+                      className="mt-auto inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                    >
+                      {isCreatingProduct ? "Creating product..." : "Create Product"}
+                    </button>
+                  </form>
+                </SheetContent>
+              </Sheet>
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-4 p-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
             {isProductsLoading ? (
               <div className="flex flex-1 items-center justify-center">
                 <div className="rounded-2xl border bg-card px-6 py-4 text-sm text-muted-foreground shadow-sm">

@@ -7,7 +7,7 @@ import DashboardPage from "./pages/DashboardPage"
 import LoginPage from "./pages/LoginPage"
 import RequirementsPage from "./pages/RequirementsPage"
 import SignupPage from "./pages/SignupPage"
-import SuppliersStagePage from "./pages/SuppliersStagePage"
+import SuppliersPage from "./pages/SuppliersPage"
 
 function App() {
   return (
@@ -35,17 +35,18 @@ function App() {
               path="chats/negotiation"
               element={<ChatsStagePage stage="negotiation" />}
             />
+            <Route path="suppliers" element={<SuppliersPage />} />
             <Route
               path="suppliers/directory"
-              element={<SuppliersStagePage stage="directory" />}
+              element={<Navigate to="/suppliers" replace />}
             />
             <Route
               path="suppliers/contacting"
-              element={<SuppliersStagePage stage="contacting" />}
+              element={<Navigate to="/suppliers" replace />}
             />
             <Route
               path="suppliers/awaiting-response"
-              element={<SuppliersStagePage stage="awaiting-response" />}
+              element={<Navigate to="/suppliers" replace />}
             />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>

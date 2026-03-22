@@ -36,6 +36,13 @@ type DataTableProps<TData, TValue> = {
   data: TData[]
   filterColumnId?: string
   filterPlaceholder?: string
+  getRowId?: (row: TData) => string
+  renderRowActions?: (row: TData) => React.ReactNode
+  renderSelectionActions?: (
+    selectedRows: TData[],
+    clearSelection: () => void
+  ) => React.ReactNode
+  enableRowSelection?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -43,6 +50,10 @@ export function DataTable<TData, TValue>({
   data,
   filterColumnId,
   filterPlaceholder = "Filter...",
+  getRowId,
+  renderRowActions,
+  renderSelectionActions,
+  enableRowSelection = true,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -78,14 +89,30 @@ export function DataTable<TData, TValue>({
     []
   )
 
-  const allColumns = React.useMemo<ColumnDef<TData, TValue>[]>(
-    () => [selectionColumn as ColumnDef<TData, TValue>, ...columns],
-    [columns, selectionColumn]
-  )
+  const allColumns = React.useMemo<ColumnDef<TData, TValue>[]>(() => {
+    const baseColumns: ColumnDef<TData, TValue>[] = [...columns]
+
+    if (renderRowActions) {
+      baseColumns.push({
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }: { row: { original: TData } }) => renderRowActions(row.original),
+      } as ColumnDef<TData, TValue>)
+    }
+
+    if (!enableRowSelection) {
+      return baseColumns
+    }
+
+    return [selectionColumn as ColumnDef<TData, TValue>, ...baseColumns]
+  }, [columns, enableRowSelection, renderRowActions, selectionColumn])
 
   const table = useReactTable({
     data,
     columns: allColumns,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -94,6 +121,7 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    enableRowSelection,
     state: {
       sorting,
       columnFilters,
@@ -102,10 +130,18 @@ export function DataTable<TData, TValue>({
     },
   })
 
+  const selectedRows = table
+    .getFilteredSelectedRowModel()
+    .rows.map((row) => row.original)
+
   return (
     <div>
       <div className="flex items-center py-4">
-        {filterColumnId ? (
+        {selectedRows.length > 0 && renderSelectionActions ? (
+          <div className="mr-3">
+            {renderSelectionActions(selectedRows, () => setRowSelection({}))}
+          </div>
+        ) : filterColumnId ? (
           <Input
             placeholder={filterPlaceholder}
             value={
@@ -184,8 +220,9 @@ export function DataTable<TData, TValue>({
       </div>
       <div className="flex items-center justify-between py-4">
         <div className="text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          {enableRowSelection
+            ? `${selectedRows.length} of ${table.getFilteredRowModel().rows.length} row(s) selected.`
+            : `${table.getFilteredRowModel().rows.length} row(s).`}
         </div>
         <div className="flex items-center gap-2">
           <Button
