@@ -138,6 +138,17 @@ after insert on auth.users
 for each row
 execute function public.handle_new_user();
 
+insert into public.profiles (id, email, display_name)
+select
+  users.id,
+  users.email,
+  nullif(users.raw_user_meta_data ->> 'display_name', '')
+from auth.users as users
+on conflict (id) do update
+  set email = excluded.email,
+      display_name = coalesce(excluded.display_name, public.profiles.display_name),
+      updated_at = timezone('utc', now());
+
 alter table public.profiles enable row level security;
 alter table public.products enable row level security;
 alter table public.requirements enable row level security;

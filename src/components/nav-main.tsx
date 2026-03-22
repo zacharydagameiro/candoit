@@ -22,8 +22,10 @@ import { ChevronRightIcon } from "lucide-react"
 
 export function NavMain({
   items,
+  label = "Workspace",
 }: {
   items: AppNavItem[]
+  label?: string
 }) {
   const { pathname } = useLocation()
   const [openItems, setOpenItems] = React.useState<Record<string, boolean>>(() =>
@@ -57,7 +59,7 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const Icon = item.icon

@@ -11,7 +11,7 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar"
-import { appNavItems } from "@/lib/app-shell"
+import { chatNavItems, workspaceNavItems } from "@/lib/app-shell"
 import type { ProductRecord } from "@/lib/products"
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
@@ -44,7 +44,8 @@ export function AppSidebar({
         />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={appNavItems} />
+        <NavMain items={workspaceNavItems} label="Workspace" />
+        <NavMain items={chatNavItems} label="Chats" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} onSignOut={onSignOut} />

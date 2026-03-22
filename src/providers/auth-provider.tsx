@@ -51,43 +51,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      const { data } = await getCurrentSession()
+      try {
+        const { data } = await getCurrentSession()
 
-      if (!isMounted) {
-        return
-      }
+        if (!isMounted) {
+          return
+        }
 
-      setSession(data)
-      setUser(data?.user ?? null)
+        setSession(data)
+        setUser(data?.user ?? null)
 
-      if (data?.user) {
-        await loadProfile(data.user.id)
-      } else {
-        setProfile(null)
-      }
-
-      if (isMounted) {
-        setIsLoading(false)
+        if (data?.user) {
+          await loadProfile(data.user.id)
+        } else {
+          setProfile(null)
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     void initializeAuth()
 
     const subscription = onAuthStateChange(async (_event, nextSession) => {
-      if (!isMounted) {
-        return
+      try {
+        if (!isMounted) {
+          return
+        }
+
+        setSession(nextSession)
+        setUser(nextSession?.user ?? null)
+
+        if (nextSession?.user) {
+          await loadProfile(nextSession.user.id)
+        } else {
+          setProfile(null)
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
-
-      setSession(nextSession)
-      setUser(nextSession?.user ?? null)
-
-      if (nextSession?.user) {
-        await loadProfile(nextSession.user.id)
-      } else {
-        setProfile(null)
-      }
-
-      setIsLoading(false)
     })
 
     return () => {

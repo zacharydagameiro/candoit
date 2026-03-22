@@ -18,6 +18,7 @@ export type AppNavChild = {
 }
 
 export type AppNavItem = {
+  section: "workspace" | "chats"
   title: string
   to: string
   icon: LucideIcon
@@ -34,35 +35,19 @@ export type SupplierStage = "directory" | "contacting" | "awaiting-response"
 
 export const appNavItems: AppNavItem[] = [
   {
+    section: "workspace",
     title: "Dashboard",
     to: "/dashboard",
     icon: LayoutDashboardIcon,
   },
   {
+    section: "workspace",
     title: "Requirements",
     to: "/requirements",
     icon: ListChecksIcon,
   },
   {
-    title: "Chats",
-    to: "/chats/discovery",
-    icon: MessageSquareMoreIcon,
-    items: [
-      {
-        title: "Discovery",
-        to: "/chats/discovery",
-      },
-      {
-        title: "Outreach",
-        to: "/chats/outreach",
-      },
-      {
-        title: "Negotiation",
-        to: "/chats/negotiation",
-      },
-    ],
-  },
-  {
+    section: "workspace",
     title: "Suppliers",
     to: "/suppliers/directory",
     icon: BoxesIcon,
@@ -81,7 +66,33 @@ export const appNavItems: AppNavItem[] = [
       },
     ],
   },
+  {
+    section: "chats",
+    title: "Chats",
+    to: "/chats/discovery",
+    icon: MessageSquareMoreIcon,
+    items: [
+      {
+        title: "Discovery",
+        to: "/chats/discovery",
+      },
+      {
+        title: "Outreach",
+        to: "/chats/outreach",
+      },
+      {
+        title: "Negotiation",
+        to: "/chats/negotiation",
+      },
+    ],
+  },
 ]
+
+export const workspaceNavItems = appNavItems.filter(
+  (item) => item.section === "workspace"
+)
+
+export const chatNavItems = appNavItems.filter((item) => item.section === "chats")
 
 export function getRouteMeta(pathname: string): RouteMeta {
   for (const item of appNavItems) {

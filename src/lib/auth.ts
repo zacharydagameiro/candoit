@@ -6,6 +6,7 @@ import type {
 } from "@supabase/supabase-js"
 
 import type { Database } from "@/lib/database.types"
+import { withTimeout } from "@/lib/async"
 import { supabase } from "@/lib/supabase"
 
 export type ProfileRecord = Database["public"]["Tables"]["profiles"]["Row"]
@@ -34,11 +35,22 @@ export async function getCurrentSession(): Promise<Result<Session>> {
     }
   }
 
-  const { data, error } = await supabase.auth.getSession()
+  try {
+    const { data, error } = await withTimeout(
+      supabase.auth.getSession(),
+      5000,
+      "Timed out while checking the current session."
+    )
 
-  return {
-    data: data.session,
-    error: error?.message ?? null,
+    return {
+      data: data.session,
+      error: error?.message ?? null,
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "Unable to load session.",
+    }
   }
 }
 
@@ -67,14 +79,25 @@ export async function signInWithPassword({
     }
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+  try {
+    const { data, error } = await withTimeout(
+      supabase.auth.signInWithPassword({
+        email,
+        password,
+      }),
+      8000,
+      "Timed out while signing in."
+    )
 
-  return {
-    data: data.user,
-    error: error?.message ?? null,
+    return {
+      data: data.user,
+      error: error?.message ?? null,
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "Unable to sign in.",
+    }
   }
 }
 
@@ -90,19 +113,31 @@ export async function signUpWithPassword({
     }
   }
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        display_name: displayName,
-      },
-    },
-  })
+  try {
+    const { data, error } = await withTimeout(
+      supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName,
+          },
+        },
+      }),
+      8000,
+      "Timed out while creating the account."
+    )
 
-  return {
-    data: data.user,
-    error: error?.message ?? null,
+    return {
+      data: data.user,
+      error: error?.message ?? null,
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error:
+        error instanceof Error ? error.message : "Unable to create the account.",
+    }
   }
 }
 
@@ -113,10 +148,20 @@ export async function signOutUser(): Promise<{ error: string | null }> {
     }
   }
 
-  const { error } = await supabase.auth.signOut()
+  try {
+    const { error } = await withTimeout(
+      supabase.auth.signOut(),
+      5000,
+      "Timed out while signing out."
+    )
 
-  return {
-    error: error?.message ?? null,
+    return {
+      error: error?.message ?? null,
+    }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to sign out.",
+    }
   }
 }
 
@@ -128,14 +173,27 @@ export async function getProfile(userId: string): Promise<Result<ProfileRecord>>
     }
   }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle()
+  try {
+    const { data, error } = await withTimeout(
+      Promise.resolve(
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle()
+      ),
+      5000,
+      "Timed out while loading the user profile."
+    )
 
-  return {
-    data: (data as ProfileRecord | null) ?? null,
-    error: error?.message ?? null,
+    return {
+      data: (data as ProfileRecord | null) ?? null,
+      error: error?.message ?? null,
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "Unable to load profile.",
+    }
   }
 }
