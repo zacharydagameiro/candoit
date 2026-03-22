@@ -58,21 +58,12 @@ export async function listRequirementsForProduct(
   }
 
   try {
-    const [requirementsResult, linksResult] = await Promise.all([
-      supabase
-        .from("requirements")
-        .select("*")
-        .eq("product_id", productId)
-        .neq("status", "archived")
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("requirement_suppliers")
-        .select("*")
-        .eq("match_status", "shortlisted"),
-    ])
-
-    const { data: requirementsData, error: requirementsError } = requirementsResult
-    const { data: linksData, error: linksError } = linksResult
+    const { data: requirementsData, error: requirementsError } = await supabase
+      .from("requirements")
+      .select("*")
+      .eq("product_id", productId)
+      .neq("status", "archived")
+      .order("created_at", { ascending: true })
 
     if (requirementsError) {
       return {
@@ -81,6 +72,22 @@ export async function listRequirementsForProduct(
       }
     }
 
+    const requirements = (requirementsData as RequirementRecord[] | null) ?? []
+    if (!requirements.length) {
+      return {
+        data: [],
+        error: null,
+      }
+    }
+
+    const requirementIds = requirements.map((requirement) => requirement.id)
+
+    const { data: linksData, error: linksError } = await supabase
+      .from("requirement_suppliers")
+      .select("requirement_id, match_status")
+      .in("requirement_id", requirementIds)
+      .in("match_status", ["candidate", "shortlisted"])
+
     if (linksError) {
       return {
         data: null,
@@ -88,20 +95,19 @@ export async function listRequirementsForProduct(
       }
     }
 
-    const requirements = (requirementsData as RequirementRecord[] | null) ?? []
     const links = (linksData as RequirementSupplierLinkRecord[] | null) ?? []
 
-    const shortlistedCountByRequirementId = new Map<string, number>()
+    const foundCountByRequirementId = new Map<string, number>()
     for (const link of links) {
-      shortlistedCountByRequirementId.set(
+      foundCountByRequirementId.set(
         link.requirement_id,
-        (shortlistedCountByRequirementId.get(link.requirement_id) ?? 0) + 1
+        (foundCountByRequirementId.get(link.requirement_id) ?? 0) + 1
       )
     }
 
     const data: RequirementWithFoundCount[] = requirements.map((requirement) => ({
       ...requirement,
-      amountFound: shortlistedCountByRequirementId.get(requirement.id) ?? 0,
+      amountFound: foundCountByRequirementId.get(requirement.id) ?? 0,
     }))
 
     return {

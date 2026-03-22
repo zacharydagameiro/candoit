@@ -239,6 +239,8 @@ export interface Database {
           phone: string | null
           country: string | null
           region: string | null
+          products: string[]
+          embedding: string | null
           notes: string | null
           created_at: string
           updated_at: string
@@ -253,6 +255,8 @@ export interface Database {
           phone?: string | null
           country?: string | null
           region?: string | null
+          products?: string[]
+          embedding?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -267,6 +271,8 @@ export interface Database {
           phone?: string | null
           country?: string | null
           region?: string | null
+          products?: string[]
+          embedding?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -275,7 +281,18 @@ export interface Database {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      match_suppliers_by_embedding: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+        }
+        Returns: {
+          supplier_id: string
+          similarity: number
+        }[]
+      }
+    }
     Enums: {
       discovery_message_role: "user" | "assistant" | "system" | "tool"
       requirement_candidate_status: "proposed" | "accepted" | "discarded"

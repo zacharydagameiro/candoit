@@ -252,7 +252,7 @@ export default function RequirementsPage() {
     () => rows.filter((row) => row.rawStatus === "found").length,
     [rows]
   )
-  const shortlistedTotal = useMemo(
+  const foundSuppliersTotal = useMemo(
     () => rows.reduce((total, row) => total + row.amountFound, 0),
     [rows]
   )
@@ -421,9 +421,9 @@ export default function RequirementsPage() {
           </p>
         </div>
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">Suppliers Shortlisted</p>
+          <p className="text-sm text-muted-foreground">Suppliers Found</p>
           <p className="mt-3 text-3xl font-semibold tracking-tight">
-            {isLoading ? "..." : shortlistedTotal}
+            {isLoading ? "..." : foundSuppliersTotal}
           </p>
         </div>
       </section>

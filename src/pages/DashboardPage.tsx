@@ -136,7 +136,7 @@ export default function DashboardPage() {
   const doneCount = requirements.filter(
     (requirement) => requirement.status === "found"
   ).length
-  const shortlistedTotal = requirements.reduce(
+  const foundSuppliersTotal = requirements.reduce(
     (total, requirement) => total + requirement.amountFound,
     0
   )
@@ -196,14 +196,14 @@ export default function DashboardPage() {
         </div>
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Suppliers Shortlisted</p>
+            <p className="text-sm text-muted-foreground">Suppliers Found</p>
             <SearchCheckIcon className="size-4 text-muted-foreground" />
           </div>
           <p className="mt-3 text-3xl font-semibold tracking-tight">
-            {isLoading ? "..." : shortlistedTotal}
+            {isLoading ? "..." : foundSuppliersTotal}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Shortlisted supplier links across requirements.
+            Candidate and shortlisted supplier links across requirements.
           </p>
         </div>
       </section>
