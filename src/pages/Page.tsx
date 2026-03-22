@@ -62,7 +62,7 @@ export default function Page() {
       if (!isMounted) {
         return
       }
- 
+  
       if (error) {
         setProducts([])
         setCurrentProductId(null)

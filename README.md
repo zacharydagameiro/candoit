@@ -1,73 +1,97 @@
-# React + TypeScript + Vite
+# CanDoIt
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Supplier discovery and outreach workspace built with React, Vite, and Supabase.
 
-Currently, two official plugins are available:
+## Stack
+- React + TypeScript + Vite
+- Tailwind + shadcn/ui
+- Supabase (Postgres + Edge Functions)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Prerequisites
+- Node.js 20+
+- npm
+- Supabase CLI
+- A Supabase project
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Local Setup
+1. Install deps:
+```bash
+npm ci
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. Create local env file:
+```bash
+cp .env.example .env.local
+```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+3. Add values to `.env.local`:
+```bash
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=...
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+4. Run app:
+```bash
+npm run dev
+```
+
+## Database Migrations
+Apply migrations to your linked Supabase project:
+```bash
+supabase db push --linked --include-all
+```
+
+## Edge Functions
+Functions live under `supabase/functions/`.
+
+Deploy all functions:
+```bash
+supabase functions deploy --project-ref <your-project-ref>
+```
+
+If you only want one function:
+```bash
+supabase functions deploy contact-suppliers-headless --project-ref <your-project-ref>
+```
+
+## Contact Automation Notes
+`contact-suppliers-headless` uses a remote browser endpoint.
+
+Set secret:
+```bash
+supabase secrets set BROWSER_WS_ENDPOINT='wss://...'
+```
+
+Important: quote the value to avoid shell parsing issues.
+
+## Build
+```bash
+npm run build
+```
+
+## GitHub Pages Deployment
+This repo is configured to deploy from `main` via GitHub Actions:
+- Workflow: `.github/workflows/deploy-pages.yml`
+- Vite base path is auto-set in CI for repo pages.
+
+### Required GitHub Actions Variables
+Set these in:
+`Settings -> Secrets and variables -> Actions -> Variables`
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
+
+Note: `VITE_*` values are embedded in frontend bundles by design.
+
+### Enable Pages
+In GitHub:
+`Settings -> Pages -> Build and deployment -> Source: GitHub Actions`
+
+After that, pushes to `main` will trigger deployment.
+
+## Useful Commands
+```bash
+npm run dev          # start local app
+npm run build        # production build
+npm run preview      # preview production build locally
 ```
