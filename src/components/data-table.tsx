@@ -1,0 +1,289 @@
+import * as React from "react"
+import {
+  type ExpandedState,
+  type ColumnFiltersState,
+  type ColumnDef,
+  type Row,
+  type SortingState,
+  type VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getExpandedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table"
+import { ChevronDownIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+
+type DataTableProps<TData, TValue> = {
+  columns: ColumnDef<TData, TValue>[]
+  data: TData[]
+  filterColumnId?: string
+  filterPlaceholder?: string
+  getRowId?: (row: TData) => string
+  getSubRows?: (row: TData) => TData[] | undefined
+  defaultExpandAllRows?: boolean
+  getRowClassName?: (row: TData) => string | undefined
+  renderRowActions?: (row: TData) => React.ReactNode
+  renderSelectionActions?: (
+    selectedRows: TData[],
+    clearSelection: () => void
+  ) => React.ReactNode
+  enableRowSelection?: boolean | ((row: TData) => boolean)
+  onRowClick?: (row: TData) => void
+}
+
+export function DataTable<TData, TValue>({
+  columns,
+  data,
+  filterColumnId,
+  filterPlaceholder = "Filter...",
+  getRowId,
+  getSubRows,
+  defaultExpandAllRows = false,
+  getRowClassName,
+  renderRowActions,
+  renderSelectionActions,
+  enableRowSelection = true,
+  onRowClick,
+}: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  )
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
+  const [expanded, setExpanded] = React.useState<ExpandedState>(
+    defaultExpandAllRows ? true : {}
+  )
+
+  const resolvedEnableRowSelection = React.useMemo(() => {
+    if (typeof enableRowSelection === "function") {
+      return (row: Row<TData>) => enableRowSelection(row.original)
+    }
+    return enableRowSelection
+  }, [enableRowSelection])
+
+  const selectionColumn = React.useMemo<ColumnDef<TData>>(
+    () => ({
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) =>
+        row.getCanSelect() ? (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ) : null,
+      enableSorting: false,
+      enableHiding: false,
+    }),
+    []
+  )
+
+  const allColumns = React.useMemo<ColumnDef<TData, TValue>[]>(() => {
+    const baseColumns: ColumnDef<TData, TValue>[] = [...columns]
+
+    if (renderRowActions) {
+      baseColumns.push({
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }: { row: { original: TData } }) => renderRowActions(row.original),
+      } as ColumnDef<TData, TValue>)
+    }
+
+    if (!enableRowSelection) {
+      return baseColumns
+    }
+
+    return [selectionColumn as ColumnDef<TData, TValue>, ...baseColumns]
+  }, [columns, enableRowSelection, renderRowActions, selectionColumn])
+
+  const table = useReactTable({
+    data,
+    columns: allColumns,
+    getRowId,
+    getSubRows,
+    getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    onExpandedChange: setExpanded,
+    filterFromLeafRows: Boolean(getSubRows),
+    paginateExpandedRows: false,
+    enableRowSelection: resolvedEnableRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      expanded,
+    },
+  })
+
+  const selectedRows = table
+    .getSelectedRowModel()
+    .flatRows.map((row) => row.original)
+
+  return (
+    <div>
+      <div className="flex items-center py-4">
+        {selectedRows.length > 0 && renderSelectionActions ? (
+          <div className="mr-3">
+            {renderSelectionActions(selectedRows, () => setRowSelection({}))}
+          </div>
+        ) : filterColumnId ? (
+          <Input
+            placeholder={filterPlaceholder}
+            value={
+              (table.getColumn(filterColumnId)?.getFilterValue() as string) ?? ""
+            }
+            onChange={(event) =>
+              table.getColumn(filterColumnId)?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm"
+          />
+        ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="ml-auto">
+              Columns <ChevronDownIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {table
+              .getAllColumns()
+              .filter((column) => column.getCanHide())
+              .map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column.id}
+                  className="capitalize"
+                  checked={column.getIsVisible()}
+                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                >
+                  {column.id}
+                </DropdownMenuCheckboxItem>
+              ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="overflow-hidden rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className={getRowClassName?.(row.original)}
+                  onClick={(event) => {
+                    if (!onRowClick) return
+                    const target = event.target as HTMLElement | null
+                    if (
+                      target?.closest(
+                        "button,a,input,label,[role='menuitem'],[data-row-click-ignore='true']"
+                      )
+                    ) {
+                      return
+                    }
+                    onRowClick(row.original)
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={allColumns.length} className="h-24 text-center">
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-between py-4">
+        <div className="text-sm text-muted-foreground">
+          {enableRowSelection
+            ? `${selectedRows.length} of ${table.getFilteredRowModel().rows.length} row(s) selected.`
+            : `${table.getFilteredRowModel().rows.length} row(s).`}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
